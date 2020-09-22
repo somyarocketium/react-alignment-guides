@@ -89,6 +89,7 @@ class AlignmentGuides extends Component {
 			}
 
 			document.addEventListener('click', this.unSelectBox);
+			window.addEventListener('blur', this.unSelectBox);
 			document.addEventListener('keydown', this.setShiftKeyState);
 			document.addEventListener('keyup', this.setShiftKeyState);
 
@@ -104,6 +105,7 @@ class AlignmentGuides extends Component {
 
 	componentWillUnmount() {
 		document.removeEventListener('click', this.unSelectBox);
+		window.removeEventListener('blur', this.unSelectBox);
 		document.removeEventListener('keydown', this.setShiftKeyState);
 		document.removeEventListener('keyup', this.setShiftKeyState);
 	}
@@ -125,7 +127,7 @@ class AlignmentGuides extends Component {
 	selectBox(e) {
 		const boundingBox = this.getBoundingBoxElement();
 		const boundingBoxPosition = boundingBox.current.getBoundingClientRect().toJSON();
-		if (e.target.id.indexOf('box') >= 0) {
+		if (e.target && e.target.id.indexOf('box') >= 0) {
 			const boxDimensions = e.target.getBoundingClientRect().toJSON();
 			let data = {
 				x: boxDimensions.x - boundingBoxPosition.x,
@@ -177,7 +179,7 @@ class AlignmentGuides extends Component {
 				});
 			}
 			this.props.onSelect && this.props.onSelect(e, data);
-		} else if (e.target.parentNode.id.indexOf('box') >= 0) {
+		} else if (e.target && e.target.parentNode && e.target.parentNode.id.indexOf('box') >= 0) {
 			const boxDimensions = e.target.parentNode.getBoundingClientRect().toJSON();
 			let data = {
 				x: boxDimensions.x - boundingBoxPosition.x,
@@ -233,7 +235,15 @@ class AlignmentGuides extends Component {
 	}
 
 	unSelectBox(e) {
-		if (e.target && e.target.id.indexOf('box') === -1 && e.target.parentNode.id.indexOf('box') === -1) {
+		if (
+			e.target === window ||
+			(
+				e.target &&
+				e.target.id.indexOf('box') === -1 &&
+				e.target.parentNode &&
+				e.target.parentNode.id.indexOf('box') === -1
+			)
+		) {
 			if (typeof this.props.isValidUnselect === 'function' && this.props.isValidUnselect(e) === false) {
 				return;
 			}
@@ -258,6 +268,11 @@ class AlignmentGuides extends Component {
 		if (this.state.boxes[data.node.id].metadata) {
 			newData.metadata = this.state.boxes[data.node.id].metadata;
 		}
+		if (data.type && data.type === 'group') {
+			newData.selections = this.state.activeBoxes.map(box => {
+				return Object.assign({}, this.state.boxes[box]);
+			});
+		}
 
 		this.props.onDragStart && this.props.onDragStart(e, newData);
 
@@ -275,6 +290,11 @@ class AlignmentGuides extends Component {
 			let newData = Object.assign({}, data);
 			if (this.state.boxes[this.state.active].metadata) {
 				newData.metadata = this.state.boxes[this.state.active].metadata;
+			}
+			if (data.type && data.type === 'group') {
+				newData.selections = this.state.activeBoxes.map(box => {
+					return Object.assign({}, this.state.boxes[box]);
+				});
 			}
 
 			this.props.onDrag && this.props.onDrag(e, newData);
@@ -338,7 +358,7 @@ class AlignmentGuides extends Component {
 			boxes,
 			guides
 		}, () => {
-			if (this.props.snap && data.type !== 'group') {
+			if (this.props.snap && this.state.active && this.state.guides && data.type !== 'group') {
 				const match = proximityListener(this.state.active, this.state.guides);
 				let newActiveBoxLeft = this.state.boxes[this.state.active].left;
 				let newActiveBoxTop = this.state.boxes[this.state.active].top;
@@ -389,7 +409,7 @@ class AlignmentGuides extends Component {
 		});
 
 		let newData = Object.assign({}, data);
-		if (this.state.boxes[this.state.active].metadata) {
+		if (this.state.boxes[this.state.active] && this.state.boxes[this.state.active].metadata) {
 			newData.metadata = this.state.boxes[this.state.active].metadata;
 		}
 
